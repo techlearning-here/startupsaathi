@@ -1,4 +1,4 @@
-"""Tests for notes API: POST (NOTES-01), GET list (NOTES-02)."""
+"""Tests for notes API: POST (NOTES-01), GET list (NOTES-02), GET one (NOTES-03), PUT (NOTES-04), DELETE (NOTES-05)."""
 
 import uuid
 from unittest.mock import MagicMock
@@ -241,3 +241,238 @@ def test_list_notes_invalid_jwt_returns_401(
         headers={"Authorization": "Bearer invalid-token"},
     )
     assert response.status_code == 401
+
+
+# --- NOTES-03: Get single note ---
+
+NOTE_ID_OWNED = "c3d4e5f6-a7b8-9012-cdef-345678901234"
+NOTE_ID_OTHER = "d4e5f6a7-b8c9-0123-def0-456789012345"
+
+
+def test_get_note_owner_returns_200(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-03.1: User A owns note N -> GET /notes/{N.id} -> 200, note N."""
+    note = {
+        "id": NOTE_ID_OWNED,
+        "user_id": TEST_USER_ID,
+        "title": "My note",
+        "body": "Content",
+        "created_at": "2026-02-14T12:00:00Z",
+        "updated_at": "2026-02-14T12:00:00Z",
+    }
+    mock_select = MagicMock()
+    mock_select.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[note]
+    )
+    mock_supabase.table.return_value.select.return_value = mock_select
+
+    response = client.get(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == NOTE_ID_OWNED
+    assert data["body"] == "Content"
+    mock_select.eq.assert_called_once_with("id", NOTE_ID_OWNED)
+    mock_select.eq.return_value.eq.assert_called_once_with("user_id", TEST_USER_ID)
+
+
+def test_get_note_non_owner_returns_404(
+    client: TestClient, mock_supabase: MagicMock
+) -> None:
+    """NOTES-03.2: User B does not own note N -> 404."""
+    other_user_token = _make_token(sub=USER_B_ID)
+    mock_select = MagicMock()
+    mock_select.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
+    mock_supabase.table.return_value.select.return_value = mock_select
+
+    response = client.get(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        headers={"Authorization": f"Bearer {other_user_token}"},
+    )
+    assert response.status_code == 404
+
+
+def test_get_note_invalid_uuid_returns_422(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-03.3: Invalid UUID -> 422."""
+    response = client.get(
+        "/api/v1/notes/not-a-uuid",
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 422
+
+
+def test_get_note_not_found_returns_404(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-03.4: Valid UUID but note not found -> 404."""
+    mock_select = MagicMock()
+    mock_select.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
+    mock_supabase.table.return_value.select.return_value = mock_select
+
+    response = client.get(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 404
+
+
+# --- NOTES-04: Update note ---
+
+def test_update_note_owner_returns_200(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-04.1: User A owns note N -> PUT with new title/body -> 200, note updated."""
+    updated_note = {
+        "id": NOTE_ID_OWNED,
+        "user_id": TEST_USER_ID,
+        "title": "New title",
+        "body": "New body",
+        "created_at": "2026-02-14T12:00:00Z",
+        "updated_at": "2026-02-14T14:00:00Z",
+    }
+    mock_update = MagicMock()
+    mock_update.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[updated_note]
+    )
+    mock_supabase.table.return_value.update.return_value = mock_update
+
+    response = client.put(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        json={"title": "New title", "body": "New body"},
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "New title"
+    assert data["body"] == "New body"
+    mock_supabase.table.return_value.update.assert_called_once()
+    call_args = mock_supabase.table.return_value.update.call_args[0][0]
+    assert call_args["body"] == "New body"
+    assert call_args["title"] == "New title"
+
+
+def test_update_note_non_owner_returns_404(
+    client: TestClient, mock_supabase: MagicMock
+) -> None:
+    """NOTES-04.2: User B does not own note N -> 404."""
+    other_token = _make_token(sub=USER_B_ID)
+    mock_update = MagicMock()
+    mock_update.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
+    mock_supabase.table.return_value.update.return_value = mock_update
+
+    response = client.put(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        json={"body": "Other"},
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert response.status_code == 404
+
+
+def test_update_note_empty_body_returns_422(
+    client: TestClient, valid_token: str,
+) -> None:
+    """NOTES-04.3: PUT with body '' -> 422."""
+    response = client.put(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        json={"body": ""},
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 422
+
+
+def test_update_note_body_only_returns_200(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-04.4: PUT with only body (no title) -> body updated."""
+    updated_note = {
+        "id": NOTE_ID_OWNED,
+        "user_id": TEST_USER_ID,
+        "title": None,
+        "body": "Only body updated",
+        "created_at": "2026-02-14T12:00:00Z",
+        "updated_at": "2026-02-14T14:00:00Z",
+    }
+    mock_update = MagicMock()
+    mock_update.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[updated_note]
+    )
+    mock_supabase.table.return_value.update.return_value = mock_update
+
+    response = client.put(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        json={"body": "Only body updated"},
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["body"] == "Only body updated"
+    call_args = mock_supabase.table.return_value.update.call_args[0][0]
+    assert call_args["body"] == "Only body updated"
+    assert "title" not in call_args or call_args.get("title") is None
+
+
+# --- NOTES-05: Delete note ---
+
+def test_delete_note_owner_returns_204(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-05.1: User A owns note N -> DELETE -> 204, note removed."""
+    mock_delete = MagicMock()
+    mock_delete.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[{"id": NOTE_ID_OWNED}]
+    )
+    mock_supabase.table.return_value.delete.return_value = mock_delete
+
+    response = client.delete(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 204
+    mock_supabase.table.return_value.delete.assert_called_once()
+    mock_delete.eq.assert_called_once_with("id", NOTE_ID_OWNED)
+    mock_delete.eq.return_value.eq.assert_called_once_with("user_id", TEST_USER_ID)
+
+
+def test_delete_note_non_owner_returns_404(
+    client: TestClient, mock_supabase: MagicMock
+) -> None:
+    """NOTES-05.2: User B does not own note N -> 404."""
+    other_token = _make_token(sub=USER_B_ID)
+    mock_delete = MagicMock()
+    mock_delete.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
+    mock_supabase.table.return_value.delete.return_value = mock_delete
+
+    response = client.delete(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert response.status_code == 404
+
+
+def test_delete_note_already_deleted_returns_404(
+    client: TestClient, valid_token: str, mock_supabase: MagicMock
+) -> None:
+    """NOTES-05.3: Note already deleted -> DELETE again -> 404."""
+    mock_delete = MagicMock()
+    mock_delete.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+        data=[]
+    )
+    mock_supabase.table.return_value.delete.return_value = mock_delete
+
+    response = client.delete(
+        f"/api/v1/notes/{NOTE_ID_OWNED}",
+        headers={"Authorization": f"Bearer {valid_token}"},
+    )
+    assert response.status_code == 404

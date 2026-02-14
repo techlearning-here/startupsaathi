@@ -34,7 +34,7 @@ Or without relying on activation: `./.venv/bin/python3 -m uvicorn app.main:app -
 - API: http://localhost:8000
 - Health: http://localhost:8000/health
 - Swagger UI: http://localhost:8000/docs (restart uvicorn after adding routes to see them)
-- Notes: `POST /api/v1/notes` (create), `GET /api/v1/notes` (list, JWT required; see `docs/lean_mvp/notes-table.sql`)
+- Notes: full CRUD at `/api/v1/notes` — POST, GET, GET /{id}, PUT /{id}, DELETE /{id} (JWT required; see `docs/lean_mvp/notes-table.sql`)
 
 ## Tests
 
