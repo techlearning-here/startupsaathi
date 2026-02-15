@@ -220,7 +220,7 @@ def test_list_notes_ordered_by_updated_at_desc(
     )
     assert response.status_code == 200
     mock_select.eq.return_value.order.assert_called_once_with(
-        "updated_at", ascending=False
+        "updated_at", desc=True
     )
 
 
