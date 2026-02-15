@@ -86,6 +86,37 @@ export async function createNote(
   return { ok: true, note: data as Note };
 }
 
+export type DeleteNoteApiResult =
+  | { ok: true }
+  | { ok: false; status: number; message: string };
+
+/**
+ * Delete a note via the backend. Requires valid access_token and note ownership. Returns 204 on success.
+ */
+export async function deleteNote(
+  id: string,
+  accessToken: string
+): Promise<DeleteNoteApiResult> {
+  const res = await fetch(`${API_BASE}/api/v1/notes/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: "no-store",
+  });
+  if (res.ok) {
+    return { ok: true };
+  }
+  const data = await res.json().catch(() => ({}));
+  const message =
+    typeof data?.detail === "string"
+      ? data.detail
+      : data?.detail
+        ? JSON.stringify(data.detail)
+        : res.statusText;
+  return { ok: false, status: res.status, message };
+}
+
 export type UpdateNotePayload = { body: string; title?: string | null };
 
 export type UpdateNoteApiResult =

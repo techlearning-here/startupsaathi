@@ -1,10 +1,12 @@
 "use client";
 
 /**
- * Keep-style modal to add a note. Uses POST response to add to list (no refetch).
+ * Keep-style modal to add a note. Calls backend API directly (no server action)
+ * so only one HTTP request: POST to API, no POST to /dashboard.
  */
-import { useState, useEffect } from "react";
-import { createNoteAction } from "@/app/notes/new/actions";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { createNote } from "@/lib/api";
 import type { Note } from "@/lib/api";
 
 type Props = { onClose: () => void; onAdded: (note: Note) => void };
@@ -12,6 +14,8 @@ type Props = { onClose: () => void; onAdded: (note: Note) => void };
 export function AddNoteModal({ onClose, onAdded }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -21,8 +25,13 @@ export function AddNoteModal({ onClose, onAdded }: Props) {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setError(null);
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -34,16 +43,33 @@ export function AddNoteModal({ onClose, onAdded }: Props) {
       return;
     }
 
-    setLoading(true);
-    const result = await createNoteAction({ body, title });
-    setLoading(false);
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setError("Not authenticated. Try signing out and back in.");
+      return;
+    }
 
-    if (result.success) {
+    submittingRef.current = true;
+    setLoading(true);
+    const result = await createNote(session.access_token, { body, title });
+    setLoading(false);
+    submittingRef.current = false;
+
+    if (result.ok) {
       onAdded(result.note);
       onClose();
       return;
     }
-    setError(result.error);
+    const msg =
+      result.status === 401
+        ? "Not authorized. Try signing out and back in."
+        : result.status === 503
+          ? "Backend storage not configured."
+          : result.message || "Failed to create note.";
+    setError(msg);
   }
 
   return (
@@ -61,19 +87,21 @@ export function AddNoteModal({ onClose, onAdded }: Props) {
         <form
           onSubmit={handleSubmit}
           className="flex flex-col flex-1 min-h-0 p-5"
+          noValidate
         >
           <div className="flex-1 overflow-auto space-y-3">
             <input
+              ref={titleRef}
               name="title"
               type="text"
-              className="w-full border-0 border-b border-stone-200 focus:border-amber-400 focus:ring-0 px-0 py-2 text-stone-900 placeholder:text-stone-400 text-lg font-medium"
+              className="note-title-input w-full border-0 border-b border-stone-200 focus:border-amber-400 focus:ring-0 pt-2 pb-3 pr-0 text-stone-900 placeholder:text-stone-400 text-lg font-medium"
               placeholder="Title"
             />
             <textarea
               name="body"
               required
               rows={10}
-              className="w-full border-0 focus:ring-0 px-0 py-2 text-stone-900 placeholder:text-stone-400 resize-none min-h-[200px]"
+              className="note-body-textarea w-full border-0 focus:ring-0 py-3 text-stone-900 placeholder:text-stone-400 resize-none min-h-[200px]"
               placeholder="Take a note…"
             />
           </div>

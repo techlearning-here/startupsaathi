@@ -13,6 +13,7 @@ export function SignOutButton() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/");
+    // Refresh required: revalidate server auth state so layout and pages show logged-out UI.
     router.refresh();
   }
 

@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Dashboard notes area: Add/edit in modals; new note stays on first page and opens in edit modal (same transition as edit).
+ * Dashboard notes area: Add/edit/delete in modals or on card.
+ * UI updates from action return values only (no router.refresh or refetch) to minimize backend calls.
  */
 import { useState, useEffect } from "react";
 import { NoteCard } from "@/components/NoteCard";
@@ -38,6 +39,12 @@ export function DashboardContent({ initialNotes }: { initialNotes: Note[] }) {
     );
   }
 
+  /** Remove deleted note from local state only (no refetch). Called when delete action returns success. */
+  function handleDeleted(noteId: string) {
+    setNotes((prev) => prev.filter((n) => n.id !== noteId));
+    setSelectedNote(null);
+  }
+
   function handleAdded(note: Note) {
     setNotes((prev) => [note, ...prev]);
   }
@@ -72,27 +79,22 @@ export function DashboardContent({ initialNotes }: { initialNotes: Note[] }) {
         >
           {notes.map((note) => (
             <li key={note.id}>
-              <NoteCard note={note} onSelect={setSelectedNote} />
+              <NoteCard
+                note={note}
+                onSelect={setSelectedNote}
+                onDeleted={handleDeleted}
+              />
             </li>
           ))}
         </ul>
       )}
-
-      {/* FAB */}
-      <button
-        type="button"
-        onClick={() => setAddModalOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-amber-400 hover:bg-amber-500 shadow-lg flex items-center justify-center text-stone-800 font-medium text-2xl leading-none"
-        aria-label="Add note"
-      >
-        +
-      </button>
 
       {selectedNote && (
         <NoteEditorModal
           note={selectedNote}
           onClose={() => setSelectedNote(null)}
           onSaved={handleSaved}
+          onDeleted={handleDeleted}
         />
       )}
 

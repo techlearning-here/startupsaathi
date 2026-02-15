@@ -29,7 +29,7 @@ export default async function DashboardPage() {
       <DevTokenLogger />
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-stone-200 px-4 py-3 flex justify-between items-center">
-        <Link href="/dashboard" className="font-semibold text-stone-800 text-lg">
+        <Link href="/dashboard" className="font-semibold text-stone-800 text-lg" prefetch={false}>
           LaunchMitra
         </Link>
         <div className="flex items-center gap-3">

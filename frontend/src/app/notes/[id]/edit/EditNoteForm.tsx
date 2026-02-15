@@ -5,7 +5,7 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { updateNoteAction } from "./actions";
 import type { Note } from "@/lib/api";
 
@@ -13,9 +13,16 @@ export function EditNoteForm({ note }: { note: Note }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setError(null);
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -27,13 +34,14 @@ export function EditNoteForm({ note }: { note: Note }) {
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
     const result = await updateNoteAction(note.id, { body, title });
     setLoading(false);
+    submittingRef.current = false;
 
     if (result.success) {
       router.push(`/notes/${note.id}`);
-      router.refresh();
       return;
     }
     setError(result.error);
@@ -46,11 +54,12 @@ export function EditNoteForm({ note }: { note: Note }) {
           Title (optional)
         </label>
         <input
+          ref={titleRef}
           id="edit-title"
           name="title"
           type="text"
           defaultValue={note.title ?? ""}
-          className="w-full border-0 border-b border-stone-200 focus:border-amber-400 focus:ring-0 px-0 py-2 text-stone-900 placeholder:text-stone-400"
+          className="note-title-input w-full border-0 border-b border-stone-200 focus:border-amber-400 focus:ring-0 py-2 pr-0 text-stone-900 placeholder:text-stone-400"
           placeholder="Title"
         />
       </div>
@@ -64,7 +73,7 @@ export function EditNoteForm({ note }: { note: Note }) {
           required
           rows={8}
           defaultValue={note.body}
-          className="w-full border-0 focus:ring-0 px-0 py-2 text-stone-900 placeholder:text-stone-400 resize-none"
+          className="note-body-textarea w-full border-0 focus:ring-0 py-2 text-stone-900 placeholder:text-stone-400 resize-none"
           placeholder="Take a note…"
         />
       </div>

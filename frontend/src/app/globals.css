@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Ensure cursor is visible in note textareas: at start (empty), on empty lines, and while typing */
+.note-body-textarea {
+  caret-color: #1c1917;
+  line-height: 2rem;
+  padding: 0.75rem 0.125rem 0.75rem 0.25rem;
+  font-size: 1rem;
+}
+.note-body-textarea::placeholder {
+  color: #a8a29e;
+}
+
+/* Ensure cursor is visible in title inputs at start (empty) and while typing */
+.note-title-input {
+  caret-color: #1c1917;
+  padding-left: 0.25rem;
+}
+.note-title-input::placeholder {
+  color: #a8a29e;
+}
