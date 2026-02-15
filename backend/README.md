@@ -4,12 +4,18 @@ API for the Lean MVP (auth, notes, avatar). Deploy to **Render**.
 
 ## Setup
 
+**Production (run API only):**
 ```bash
 cd backend
-python3.13 -m venv .venv    # or: python3 -m venv .venv (use 3.13 if available)
+python3.13 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env        # Edit .env with Supabase (optional for health-only)
+```
+
+**Development (run API + tests):**
+```bash
+pip install -r requirements-dev.txt   # includes requirements.txt + pytest
 ```
 
 **Python version:** This project uses 3.13. If your system `python3` is 3.11, use the venv’s interpreter so you get 3.13:
