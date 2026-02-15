@@ -1,9 +1,59 @@
 /**
- * Backend API client (server-side). Use with Supabase session access_token.
+ * Backend API client. Use with Supabase session access_token.
  */
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export type UserMe = {
+  id: string;
+  email?: string | null;
+  avatar_url?: string | null;
+};
+
+/**
+ * Get current user including avatar_url (AVATAR-02).
+ */
+export async function getMe(accessToken: string): Promise<UserMe | null> {
+  const res = await fetch(`${API_BASE}/api/v1/users/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export type UploadAvatarResult =
+  | { ok: true; avatar_url: string }
+  | { ok: false; status: number; message: string };
+
+/**
+ * Upload avatar image (AVATAR-01). Max 2 MB; JPEG, PNG, WebP.
+ */
+export async function uploadAvatar(
+  accessToken: string,
+  file: File
+): Promise<UploadAvatarResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/v1/users/me/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof data?.detail === "string"
+        ? data.detail
+        : data?.detail
+          ? JSON.stringify(data.detail)
+          : res.statusText;
+    return { ok: false, status: res.status, message };
+  }
+  return { ok: true, avatar_url: (data as { avatar_url: string }).avatar_url };
+}
 
 export type Note = {
   id: string;

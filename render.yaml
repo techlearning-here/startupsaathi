@@ -1,10 +1,13 @@
-# Render.com web service (see docs/SETUP_GUIDE.md)
+# Render Blueprint — single file at repo root (monorepo: backend via rootDir).
+# Backend runs from backend/; see docs/lean_mvp/DEPLOY_VERCEL_RENDER.md.
 services:
   - type: web
-    name: launchmitra-api
-    env: python
+    name: startupsaathi-api
+    runtime: python
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.13"

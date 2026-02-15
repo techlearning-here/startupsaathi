@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SignOutButton } from "@/components/SignOutButton";
 import { DevTokenLogger } from "@/components/DevTokenLogger";
 import { DashboardContent } from "@/components/DashboardContent";
+import { HeaderUser } from "@/components/HeaderUser";
 import { fetchNotes } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -33,9 +34,7 @@ export default async function DashboardPage() {
           LaunchMitra
         </Link>
         <div className="flex items-center gap-3">
-          <span className="text-stone-500 text-sm hidden sm:inline">
-            {user.email}
-          </span>
+          <HeaderUser initialEmail={user.email} />
           <SignOutButton />
         </div>
       </header>
