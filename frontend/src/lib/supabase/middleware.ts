@@ -36,8 +36,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isProtected = request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/profile");
+  const isProtected =
+    request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/profile") ||
+    request.nextUrl.pathname.startsWith("/notes");
   if (isProtected && !user) {
     const redirect = new URL("/login", request.url);
     redirect.searchParams.set("next", request.nextUrl.pathname);

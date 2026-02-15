@@ -105,7 +105,7 @@ async def list_notes(
         client.table("notes")
         .select("*")
         .eq("user_id", current_user["id"])
-        .order("updated_at", ascending=False)
+        .order("updated_at", desc=True)
         .execute()
     )
     return result.data if result.data is not None else []
